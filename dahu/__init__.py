@@ -1,7 +1,8 @@
 from .immersion import immersion
 from .pqueue import PQueue
 from .border import add_border, add_median_border
-from .utils import C4, C8, in_domain, clamp
+from .utils import C4, C8, in_domain, clamp, is_2_face
+from .level_lines_distance_transform import level_lines_distance_transform
 
 __all__ = [
     "immersion",
@@ -12,4 +13,6 @@ __all__ = [
     "C8",
     "in_domain",
     "clamp",
+    "is_2_face",
+    "level_lines_distance_transform",
 ]

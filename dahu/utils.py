@@ -13,3 +13,7 @@ def clamp(v: int, vmin: int, vmax: int) -> int:
         return vmax
     else:
         return v
+
+
+def is_2_face(l: int, c: int) -> bool:
+    return l % 2 == 0 and c % 2 == 0
