@@ -41,6 +41,7 @@ class ResultsWindow(QMainWindow):
         self.lbl_markers = QLabel("Markers")
         self.lbl_fg = QLabel("LLDT Foreground")
         self.lbl_bg = QLabel("LLDT Background")
+        self.lbl_prob = QLabel("Probability")
 
         self.img_markers = QLabel()
         self.img_markers.setAlignment(Qt.AlignCenter)
@@ -48,13 +49,17 @@ class ResultsWindow(QMainWindow):
         self.img_fg.setAlignment(Qt.AlignCenter)
         self.img_bg = QLabel()
         self.img_bg.setAlignment(Qt.AlignCenter)
+        self.img_prob = QLabel()
+        self.img_prob.setAlignment(Qt.AlignCenter)
 
         grid.addWidget(self.lbl_markers, 0, 0)
         grid.addWidget(self.lbl_fg, 0, 1)
         grid.addWidget(self.lbl_bg, 0, 2)
+        grid.addWidget(self.lbl_prob, 0, 3)
         grid.addWidget(self.img_markers, 1, 0)
         grid.addWidget(self.img_fg, 1, 1)
         grid.addWidget(self.img_bg, 1, 2)
+        grid.addWidget(self.img_prob, 1, 3)
 
         layout.addLayout(grid)
 
@@ -103,8 +108,10 @@ class ResultsWindow(QMainWindow):
 
         # use inferno colormap for LLDT displays and store original pixmaps
         cmap = cm.get_cmap("inferno")
+        cmap_r = cm.get_cmap("inferno_r")
         self._pix_fg = None
         self._pix_bg = None
+        self._pix_prob = None
         if self.D_fg is not None:
             fg_norm = self._normalize_to_uint8(self.D_fg)
             fg_rgb = (cmap(fg_norm / 255.0)[..., :3] * 255).astype(np.uint8)
@@ -115,6 +122,19 @@ class ResultsWindow(QMainWindow):
             bg_rgb = (cmap(bg_norm / 255.0)[..., :3] * 255).astype(np.uint8)
             qbg = self._array_to_qimage(bg_rgb)
             self._pix_bg = QPixmap.fromImage(qbg)
+
+        # Compute probability: D_fg / (D_fg + D_bg)
+        if self.D_fg is not None and self.D_bg is not None:
+            # Avoid division by zero
+            denom = self.D_fg.astype(np.float64) + self.D_bg.astype(np.float64)
+            prob = np.zeros_like(self.D_fg, dtype=np.float64)
+            mask = denom > 0
+            prob[mask] = self.D_fg[mask].astype(np.float64) / denom[mask]
+            # Normalize to [0, 255]
+            prob_uint8 = (prob * 255).astype(np.uint8)
+            prob_rgb = (cmap_r(prob)[..., :3] * 255).astype(np.uint8)
+            qprob = self._array_to_qimage(prob_rgb)
+            self._pix_prob = QPixmap.fromImage(qprob)
 
         # scale to the current label sizes
         self._rescale_pixmaps()
@@ -151,6 +171,17 @@ class ResultsWindow(QMainWindow):
                 bg_rgb = (cmap(bg_norm / 255.0)[..., :3] * 255).astype(np.uint8)
                 qbg = self._array_to_qimage(bg_rgb)
                 qbg.save(os.path.join(d, "bg.png"))
+
+            # Save probability image
+            if self.D_fg is not None and self.D_bg is not None:
+                cmap_r = cm.get_cmap("inferno_r")
+                denom = self.D_fg.astype(np.float64) + self.D_bg.astype(np.float64)
+                prob = np.zeros_like(self.D_fg, dtype=np.float64)
+                mask = denom > 0
+                prob[mask] = self.D_fg[mask].astype(np.float64) / denom[mask]
+                prob_rgb = (cmap_r(prob)[..., :3] * 255).astype(np.uint8)
+                qprob = self._array_to_qimage(prob_rgb)
+                qprob.save(os.path.join(d, "probability.png"))
         except Exception as e:
             QMessageBox.warning(
                 self, "Save error", f"Failed to save distance transforms: {e}"
@@ -183,6 +214,14 @@ class ResultsWindow(QMainWindow):
                 if target.width() > 0 and target.height() > 0:
                     self.img_bg.setPixmap(
                         self._pix_bg.scaled(
+                            target, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                        )
+                    )
+            if getattr(self, "_pix_prob", None) is not None:
+                target = self.img_prob.size()
+                if target.width() > 0 and target.height() > 0:
+                    self.img_prob.setPixmap(
+                        self._pix_prob.scaled(
                             target, Qt.KeepAspectRatio, Qt.SmoothTransformation
                         )
                     )

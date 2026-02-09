@@ -191,16 +191,19 @@ class ImageViewer(QMainWindow):
         # Compute immersion of image
         m, M = immersion(img_for_dahu)
 
+        # Immerse the marker masks to match the notebook behavior
+        _, fg_K = immersion(fg_mask)
+        _, bg_K = immersion(bg_mask)
+
         D_fg = None
         D_bg = None
         try:
-            # Use marker pixel coordinates as seeds directly so we don't
-            # modify or corrupt the input image used for immersion.
-            if np.any(fg_mask):
-                seeds_fg = get_coordinates(fg_mask > 0)
+            # Extract seeds from immersed marker images (matching notebook implementation)
+            if np.any(fg_K):
+                seeds_fg = get_coordinates(fg_K > 0)
                 _, D_fg = level_lines_distance_transform(m, M, seeds_fg)
-            if np.any(bg_mask):
-                seeds_bg = get_coordinates(bg_mask > 0)
+            if np.any(bg_K):
+                seeds_bg = get_coordinates(bg_K > 0)
                 _, D_bg = level_lines_distance_transform(m, M, seeds_bg)
         except Exception as e:
             print("Error computing LLDT:", e)
