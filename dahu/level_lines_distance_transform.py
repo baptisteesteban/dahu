@@ -1,7 +1,7 @@
 import numpy as np
 
 from .pqueue import PQueue
-from .utils import in_domain, C4, is_2_face, clamp
+from .utils import in_domain, C4, clamp
 
 
 def level_lines_distance_transform(
@@ -15,9 +15,9 @@ def level_lines_distance_transform(
 
     # Process initial points
     for l, c in seeds:
-        assert in_domain(m.shape, l, c) and is_2_face(l, c)
+        assert in_domain(m.shape, l, c)
         D[l, c] = 0
-        F[l, c] = m[l, c]  # Here m[l, c] == M[l, c] (it is a 2 face)
+        F[l, c] = m[l, c]
         q.push((l, c), 0)
 
     while not q.empty():
