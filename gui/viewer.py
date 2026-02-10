@@ -18,6 +18,7 @@ import numpy as np
 from dahu import (
     immersion,
     level_lines_distance_transform,
+    geodesic_distance_transform,
     get_coordinates,
     get_marker_image,
 )
@@ -208,6 +209,17 @@ class ImageViewer(QMainWindow):
         except Exception as e:
             print("Error computing LLDT:", e)
 
+        # Compute geodesic distance transform on the original image
+        D_fg_geos = None
+        D_bg_geos = None
+        try:
+            if np.any(fg_mask):
+                D_fg_geos = geodesic_distance_transform(img_for_dahu, fg_mask > 0)
+            if np.any(bg_mask):
+                D_bg_geos = geodesic_distance_transform(img_for_dahu, bg_mask > 0)
+        except Exception as e:
+            print("Error computing geodesic distance transform:", e)
+
         # Display the marker image and LLDT results in a new window.
         try:
             marker_image = get_marker_image(arr_orig_gray, markers)
@@ -219,7 +231,7 @@ class ImageViewer(QMainWindow):
 
         try:
             # Create the results window without a parent so it is independent
-            dlg = ResultsWindow(marker_image, D_fg, D_bg)
+            dlg = ResultsWindow(marker_image, D_fg, D_bg, D_fg_geos, D_bg_geos)
             # Keep a reference so Python/GIL doesn't garbage-collect it while shown
             self._last_results_window = dlg
             # Ensure it is deleted when closed and show non-modally

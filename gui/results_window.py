@@ -18,20 +18,28 @@ from PySide6.QtCore import Qt
 
 class ResultsWindow(QMainWindow):
     def __init__(
-        self, marker_image: np.ndarray, D_fg: np.ndarray, D_bg: np.ndarray, parent=None
+        self,
+        marker_image: np.ndarray,
+        D_fg: np.ndarray,
+        D_bg: np.ndarray,
+        D_fg_geos: np.ndarray = None,
+        D_bg_geos: np.ndarray = None,
+        parent=None,
     ):
         super().__init__(parent)
-        self.setWindowTitle("LLDT Results")
+        self.setWindowTitle("Distance Transform Results")
         try:
             flags = self.windowFlags() | Qt.Window | Qt.WindowMinMaxButtonsHint
             self.setWindowFlags(flags)
-            self.setMinimumSize(400, 300)
+            self.setMinimumSize(600, 400)
         except Exception:
             pass
 
         self.marker_image = marker_image
         self.D_fg = D_fg
         self.D_bg = D_bg
+        self.D_fg_geos = D_fg_geos
+        self.D_bg_geos = D_bg_geos
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -41,7 +49,10 @@ class ResultsWindow(QMainWindow):
         self.lbl_markers = QLabel("Markers")
         self.lbl_fg = QLabel("LLDT Foreground")
         self.lbl_bg = QLabel("LLDT Background")
-        self.lbl_prob = QLabel("Probability")
+        self.lbl_prob = QLabel("LLDT Probability")
+        self.lbl_fg_geos = QLabel("Geodesic Foreground")
+        self.lbl_bg_geos = QLabel("Geodesic Background")
+        self.lbl_prob_geos = QLabel("Geodesic Probability")
 
         self.img_markers = QLabel()
         self.img_markers.setAlignment(Qt.AlignCenter)
@@ -51,7 +62,14 @@ class ResultsWindow(QMainWindow):
         self.img_bg.setAlignment(Qt.AlignCenter)
         self.img_prob = QLabel()
         self.img_prob.setAlignment(Qt.AlignCenter)
+        self.img_fg_geos = QLabel()
+        self.img_fg_geos.setAlignment(Qt.AlignCenter)
+        self.img_bg_geos = QLabel()
+        self.img_bg_geos.setAlignment(Qt.AlignCenter)
+        self.img_prob_geos = QLabel()
+        self.img_prob_geos.setAlignment(Qt.AlignCenter)
 
+        # First row: LLDT results
         grid.addWidget(self.lbl_markers, 0, 0)
         grid.addWidget(self.lbl_fg, 0, 1)
         grid.addWidget(self.lbl_bg, 0, 2)
@@ -60,6 +78,14 @@ class ResultsWindow(QMainWindow):
         grid.addWidget(self.img_fg, 1, 1)
         grid.addWidget(self.img_bg, 1, 2)
         grid.addWidget(self.img_prob, 1, 3)
+
+        # Second row: Geodesic results
+        grid.addWidget(self.lbl_fg_geos, 2, 1)
+        grid.addWidget(self.lbl_bg_geos, 2, 2)
+        grid.addWidget(self.lbl_prob_geos, 2, 3)
+        grid.addWidget(self.img_fg_geos, 3, 1)
+        grid.addWidget(self.img_bg_geos, 3, 2)
+        grid.addWidget(self.img_prob_geos, 3, 3)
 
         layout.addLayout(grid)
 
@@ -136,6 +162,35 @@ class ResultsWindow(QMainWindow):
             qprob = self._array_to_qimage(prob_rgb)
             self._pix_prob = QPixmap.fromImage(qprob)
 
+        # Add geodesic distance transforms
+        self._pix_fg_geos = None
+        self._pix_bg_geos = None
+        self._pix_prob_geos = None
+        if self.D_fg_geos is not None:
+            fg_geos_norm = self._normalize_to_uint8(self.D_fg_geos)
+            fg_geos_rgb = (cmap(fg_geos_norm / 255.0)[..., :3] * 255).astype(np.uint8)
+            qfg_geos = self._array_to_qimage(fg_geos_rgb)
+            self._pix_fg_geos = QPixmap.fromImage(qfg_geos)
+        if self.D_bg_geos is not None:
+            bg_geos_norm = self._normalize_to_uint8(self.D_bg_geos)
+            bg_geos_rgb = (cmap(bg_geos_norm / 255.0)[..., :3] * 255).astype(np.uint8)
+            qbg_geos = self._array_to_qimage(bg_geos_rgb)
+            self._pix_bg_geos = QPixmap.fromImage(qbg_geos)
+
+        # Compute geodesic probability: D_fg_geos / (D_fg_geos + D_bg_geos)
+        if self.D_fg_geos is not None and self.D_bg_geos is not None:
+            denom_geos = self.D_fg_geos.astype(np.float64) + self.D_bg_geos.astype(
+                np.float64
+            )
+            prob_geos = np.zeros_like(self.D_fg_geos, dtype=np.float64)
+            mask_geos = denom_geos > 0
+            prob_geos[mask_geos] = (
+                self.D_fg_geos[mask_geos].astype(np.float64) / denom_geos[mask_geos]
+            )
+            prob_geos_rgb = (cmap_r(prob_geos)[..., :3] * 255).astype(np.uint8)
+            qprob_geos = self._array_to_qimage(prob_geos_rgb)
+            self._pix_prob_geos = QPixmap.fromImage(qprob_geos)
+
         # scale to the current label sizes
         self._rescale_pixmaps()
 
@@ -182,6 +237,37 @@ class ResultsWindow(QMainWindow):
                 prob_rgb = (cmap_r(prob)[..., :3] * 255).astype(np.uint8)
                 qprob = self._array_to_qimage(prob_rgb)
                 qprob.save(os.path.join(d, "probability.png"))
+
+            # Save geodesic distance transforms
+            if self.D_fg_geos is not None:
+                fg_geos_norm = self._normalize_to_uint8(self.D_fg_geos)
+                fg_geos_rgb = (cmap(fg_geos_norm / 255.0)[..., :3] * 255).astype(
+                    np.uint8
+                )
+                qfg_geos = self._array_to_qimage(fg_geos_rgb)
+                qfg_geos.save(os.path.join(d, "fg_geos.png"))
+            if self.D_bg_geos is not None:
+                bg_geos_norm = self._normalize_to_uint8(self.D_bg_geos)
+                bg_geos_rgb = (cmap(bg_geos_norm / 255.0)[..., :3] * 255).astype(
+                    np.uint8
+                )
+                qbg_geos = self._array_to_qimage(bg_geos_rgb)
+                qbg_geos.save(os.path.join(d, "bg_geos.png"))
+
+            # Save geodesic probability image
+            if self.D_fg_geos is not None and self.D_bg_geos is not None:
+                cmap_r = cm.get_cmap("inferno_r")
+                denom_geos = self.D_fg_geos.astype(np.float64) + self.D_bg_geos.astype(
+                    np.float64
+                )
+                prob_geos = np.zeros_like(self.D_fg_geos, dtype=np.float64)
+                mask_geos = denom_geos > 0
+                prob_geos[mask_geos] = (
+                    self.D_fg_geos[mask_geos].astype(np.float64) / denom_geos[mask_geos]
+                )
+                prob_geos_rgb = (cmap_r(prob_geos)[..., :3] * 255).astype(np.uint8)
+                qprob_geos = self._array_to_qimage(prob_geos_rgb)
+                qprob_geos.save(os.path.join(d, "probability_geos.png"))
         except Exception as e:
             QMessageBox.warning(
                 self, "Save error", f"Failed to save distance transforms: {e}"
@@ -222,6 +308,30 @@ class ResultsWindow(QMainWindow):
                 if target.width() > 0 and target.height() > 0:
                     self.img_prob.setPixmap(
                         self._pix_prob.scaled(
+                            target, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                        )
+                    )
+            if getattr(self, "_pix_fg_geos", None) is not None:
+                target = self.img_fg_geos.size()
+                if target.width() > 0 and target.height() > 0:
+                    self.img_fg_geos.setPixmap(
+                        self._pix_fg_geos.scaled(
+                            target, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                        )
+                    )
+            if getattr(self, "_pix_bg_geos", None) is not None:
+                target = self.img_bg_geos.size()
+                if target.width() > 0 and target.height() > 0:
+                    self.img_bg_geos.setPixmap(
+                        self._pix_bg_geos.scaled(
+                            target, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                        )
+                    )
+            if getattr(self, "_pix_prob_geos", None) is not None:
+                target = self.img_prob_geos.size()
+                if target.width() > 0 and target.height() > 0:
+                    self.img_prob_geos.setPixmap(
+                        self._pix_prob_geos.scaled(
                             target, Qt.KeepAspectRatio, Qt.SmoothTransformation
                         )
                     )
