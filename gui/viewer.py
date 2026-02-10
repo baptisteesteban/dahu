@@ -15,7 +15,7 @@ from PySide6.QtGui import QPixmap, QColor, QImage
 from PySide6.QtCore import Qt
 import numpy as np
 
-from dahu import (
+from dt import (
     immersion,
     level_lines_distance_transform,
     geodesic_distance_transform,
@@ -174,11 +174,6 @@ class ImageViewer(QMainWindow):
         else:
             # fallback: mark any changed pixel as foreground (1)
             markers[changed] = 1
-
-        # Print grayscale image shape and marker summary
-        print(
-            f"image shape: {arr_cur_gray.shape}, markers unique: {np.unique(markers)}"
-        )
 
         # Prepare image and seeds for dahu level-lines distance transform.
         # Use the original (unpainted) image so marker values do not corrupt

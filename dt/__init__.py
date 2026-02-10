@@ -11,7 +11,6 @@ from .utils import (
     get_marker_image,
 )
 from .level_lines_distance_transform import level_lines_distance_transform
-from .dahu_distance_transform import dahu_distance_transform
 from .geodesic_distance_transform import geodesic_distance_transform
 
 __all__ = [
@@ -25,7 +24,6 @@ __all__ = [
     "clamp",
     "is_2_face",
     "level_lines_distance_transform",
-    "dahu_distance_transform",
     "get_coordinates",
     "get_marker_image",
     "geodesic_distance_transform",

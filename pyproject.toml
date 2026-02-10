@@ -1,5 +1,7 @@
 [project]
-name = "dahu"
+name = "dt"
+description = "A comparison tool between level lines and geodesic distance transform"
+readme = "README.md"
 version = "0.1.0"
 authors = [{ name = "Baptiste Esteban", email = "baptiste.esteban@epita.fr" }]
 requires-python = "==3.11.*"
@@ -11,4 +13,4 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["notebook==7.5.3", "ruff==0.15.0", "imageio==2.37.2"]
+dev = ["ruff==0.15.0"]
